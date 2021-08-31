@@ -1,0 +1,112 @@
+<!doctype html>
+<html class="no-js" lang="">
+<head>
+  <title>Force simulation</title>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+<div id="chart"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.2.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+<script src="data/data.js"></script>
+
+<script>
+let nodes; //node data based on year & data
+let year = 1996; //current year
+let simulation;
+
+const overallRadius = 300;
+const width = 900;
+const height = 900;
+const padding = 1.5;
+const unique_clusters = _.chain(data).map(d=>d.category).uniq().value().sort()
+const numClus = unique_clusters.length; // number of distinct clusters
+const toIndex = d3.scaleOrdinal().domain(unique_clusters).range([...Array(numClus).keys()]);
+const svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
+
+createNodes()
+drawCircles()
+drawSimulation()
+
+if (year <2020){
+    setInterval(function() {
+        year++;
+        createNodes()
+        drawCircles()
+        drawSimulation()
+    }, 1000);
+}
+
+function drawSimulation() {
+
+    simulation = d3.forceSimulation(nodes)
+        .force('collide', d3.forceCollide(d => d.radius + padding).strength(0.9))
+        .force("x", d3.forceX().x(d => d.x).strength(0.1))
+        .force("y", d3.forceY().y(d => d.y).strength(0.1))
+        .alphaDecay(0.038)
+        .on("tick", () => {
+            d3.selectAll("circle.circle")
+                .transition()
+                .ease(d3.easeLinear)
+                .attr("cx", d=>d.x)
+                .attr("cy", d=>d.y);
+        })
+
+}
+
+function createNodes(){
+
+    const dataBeforeYear = data.filter(d=> d.year <= year) //only get the 
+
+    //create nodes with positions for a specific year
+    nodes = dataBeforeYear.map(function(d) {
+        let x;
+        let y;
+        const i = toIndex(d.category);
+
+        if(d.year == year){
+             x = width / 2;
+             y = height / 2;
+        }
+        if(d.year != year && d.year < year){
+            x = Math.cos(i / numClus * 2 * Math.PI) * overallRadius + width / 2;
+            y = Math.sin(i / numClus * 2 * Math.PI) * overallRadius + height / 2;
+        }
+
+        const r = 3;
+        const d2 = {
+                id: d.id,
+                cluster: d.category,
+                size: d.num,
+                cluster: i,
+                radius: r,
+                year: d.year,
+                x: x,
+                y: y,
+                color: d.color
+            };
+        return d2;
+    })   
+}
+
+function drawCircles() {
+
+    svg.selectAll("circle.circle")
+        .data(nodes, d => d.id)
+        .join("circle")
+        .attr("class", "circle")
+        .attr("cx",d=>d.x)
+        .attr("cy", d=>d.y)
+        .attr("r", d => d.radius)
+        .attr("fill", d=>d.color);
+
+}
+
+
+</script>
+</body>
+</html>
